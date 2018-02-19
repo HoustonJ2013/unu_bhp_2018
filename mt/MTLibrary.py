@@ -4,8 +4,7 @@
 ## From downstream to upstream. Please check the map for the corresponding location
 
 #df2
-separator_2nd_stage_train1_features =
-                       ["21-PT-10605.PV_Prod_Sep_2nd_Stg (PSIG)",
+separator_2nd_stage_train1_features = ["21-PT-10605.PV_Prod_Sep_2nd_Stg (PSIG)",
                         "21-LY-10616.OUT_Prod_Sep_2nd_Stg_Fluid_To_Exch (%)",
                         "21-LT-10618.PV_Prod_Sep_2nd_Stg_Interface (%)",
                         "30-FT-19107-01.PV_2nd_Stg_Hydrocyclone_Inlet (BPD)",
