@@ -11,7 +11,7 @@ require(data.table)
 library(grid)
 library(logging)
 basicConfig()
-
+library(feather)
 file1.name = "../data/Hackathon_DataSet_OctApr_Part1.txt"
 file2.name = "../data/Hackathon_DataSet_OctApr_Part2.txt"
 part1= as_tibble(fread(file1.name, sep="\t", stringsAsFactors = T, header=T))
@@ -21,7 +21,14 @@ part2= as_tibble(fread(file2.name, sep="\t", stringsAsFactors = T, header=T))
 petroleum.data = part1 %>% inner_join (part2, by=c('Id' = 'Id', 'TimeStamp' = 'TimeStamp', 'hackathon4' = 'hackathon4', 'PIIntShapeID' = 'PIIntShapeID', 'PIIntTSTicks' = 'PIIntTSTicks')) 
 petroleum.data$TimeStamp = as.POSIXct(as.character(petroleum.data$TimeStamp), format="%m/%d/%Y %I:%M:%S %p")
 petroleum.data = petroleum.data %>% select(-one_of(c("hackathon4", "PIIntShapeID", "PIIntTSTicks" )))
+
+
+write_feather(petroleum.data, '../data/all_data.feather')
+
+petroleum.data = read_feather('../data/all_data.feather')
+
 head(petroleum.data)
+
 write.csv(petroleum.data, '../data/hackathon_dataset_octapr_combined.csv')
 start_time =as.POSIXct('15/11/2016 10:00:00', format="%d/%m/%Y %H:%M:%S")# datetime(2017, 3, 11,20,0)
 end_time = as.POSIXct('16/11/2016 12:00:00', format="%d/%m/%Y %H:%M:%S") #datetime(2017, 3, 12, 13,0)
