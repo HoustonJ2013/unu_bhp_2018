@@ -28,8 +28,8 @@ write_feather(petroleum.data, '../data/all_data.feather')
 petroleum.data = read_feather('../data/all_data.feather')
 
 head(petroleum.data)
+#write.csv(petroleum.data, '../data/hackathon_dataset_octapr_combined.csv')
 
-write.csv(petroleum.data, '../data/hackathon_dataset_octapr_combined.csv')
 start_time =as.POSIXct('15/11/2016 10:00:00', format="%d/%m/%Y %H:%M:%S")# datetime(2017, 3, 11,20,0)
 end_time = as.POSIXct('16/11/2016 12:00:00', format="%d/%m/%Y %H:%M:%S") #datetime(2017, 3, 12, 13,0)
 

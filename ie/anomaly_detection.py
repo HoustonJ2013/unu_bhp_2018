@@ -107,7 +107,7 @@ X_train = np.asarray(np.reshape(X_train, (X_train.shape[0], sequence_length, 1))
 X_test = np.asarray(np.reshape(X_test, (X_test.shape[0], sequence_length, 1)))
 
 # run your model!
-model.fit(X_train, y_train, epochs=1000, batch_size=50, verbose=1)
+model.fit(X_train, y_train, epochs=5, batch_size=50, verbose=1)
 
 # generate predictions for training
 train_predict = model.predict(X_train)
