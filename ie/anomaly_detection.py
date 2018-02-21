@@ -43,36 +43,37 @@ class anomaly_detection:
     def __enter__(self):
         return (self)
 
-    def __init__(self, sequence_length=50, batch_size=64, epochs=50):
+    def __init__(self, sequence_length=50, batch_size=64, epochs=50, dropout = 0.2):
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.epochs = epochs
         self.dir_path = os.getcwd()
         self.data_dir = os.path.abspath(os.path.join(dir_path, '../data'))
         self.best_weights = os.path.join(data_dir, 'weights.hdf5')
-        self.create_model()
+        self.dropout = dropout
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
-    def create_model(self):
+    def create_model(self, input_shape):
 
         #create model
         model = Sequential()
-        layers = {'input': 1, 'hidden1': 64, 'hidden2': 256, 'hidden3': 100, 'output': 1}
+        layers = {'input': 1, 'hidden1': 64, 'hidden2': 512, 'hidden3': 256, 'hidden4': 100, 'output': 1}
 
-        model.add(LSTM( input_length=self.sequence_length,  input_dim=layers['input'],
-                    output_dim=layers['hidden1'],
-                    return_sequences=True))
-        model.add(Dropout(0.2))
+        model.add(LSTM( input_shape=input_shape, units=layers['hidden1'], return_sequences=True))
+        model.add(Dropout(self.dropout))
 
-        model.add(LSTM(layers['hidden2'],return_sequences=True))
-        model.add(Dropout(0.2))
+        model.add(LSTM(units=layers['hidden2'],return_sequences=True))
+        model.add(Dropout(self.dropout))
 
-        model.add(LSTM(layers['hidden3'], return_sequences=False))
-        model.add(Dropout(0.2))
+        model.add(LSTM(units=layers['hidden3'], return_sequences=True))
+        model.add(Dropout(self.dropout))
 
-        model.add(Dense(output_dim=layers['output']))
+        model.add(LSTM(units=layers['hidden4'], return_sequences=False))
+        model.add(Dropout(self.dropout))
+
+        model.add(Dense(units=layers['output']))
         model.add(Activation("linear"))
         self.model = model
         self.model.compile(loss="mse", optimizer="rmsprop")
@@ -109,6 +110,8 @@ class anomaly_detection:
         # partition the training set
         X_train = X[:train_test_split, :]
         y_train = y[:train_test_split]
+        input_shape = (None, 1)
+        self.create_model(input_shape)
 
         # keep the last chunk for testing
         X_test = X[train_test_split:, :]
@@ -149,7 +152,7 @@ class anomaly_detection:
         plt.show()
 
 
-with anomaly_detection(sequence_length=50, batch_size=64, epochs=50) as anomaly_detection:
+with anomaly_detection(sequence_length=50, batch_size=64, epochs=50, dropout=0.5) as anomaly_detection:
     start = time.time()
     start_time = datetime(2017, 3, 11,11,0)
     end_time = datetime(2017, 3, 12, 12,0)
