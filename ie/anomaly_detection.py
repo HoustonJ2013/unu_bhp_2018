@@ -1,7 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
-import matplotlib.pylab as plt
 from datetime import datetime
 import matplotlib.dates as mdates
 import numpy as np
@@ -11,13 +10,12 @@ from keras.models import Sequential
 from keras.layers.core import Dense, Activation, Dropout
 from keras.layers import LSTM
 import time
-pd.set_option('display.max_columns', 51)
-font = {'family' : 'normal',
-        'weight' : 'bold',
-        'size'   : 32}
-plt.rc('font', **font)
+from keras.callbacks import ModelCheckpoint
 import os
 
+import matplotlib.pyplot as plt
+
+# plot original series
 dir_path = os.getcwd()
 data_dir = os.path.abspath(os.path.join(dir_path, '../data'))
 combined_pkl = os.path.join(data_dir, 'combine.pkl')
@@ -38,93 +36,123 @@ file2 = os.path.join(data_dir,"Hackathon_DataSet_OctApr_Part2.txt")
 #file_df.to_pickle(combined_pkl)
 file_df = pd.read_pickle(combined_pkl)
 
-sequence_length = 1000
+#file_df.info()
 
-file_df.info()
 
-#create model
-model = Sequential()
-layers = {'input': 1, 'hidden1': 64, 'hidden2': 256, 'hidden3': 100, 'output': 1}
+class anomaly_detection:
+    def __enter__(self):
+        return (self)
 
-model.add(LSTM( input_length=sequence_length,  input_dim=layers['input'],
-            output_dim=layers['hidden1'],
-            return_sequences=True))
-model.add(Dropout(0.2))
+    def __init__(self, sequence_length=50, batch_size=64, epochs=50):
+        self.sequence_length = sequence_length
+        self.batch_size = batch_size
+        self.epochs = epochs
+        self.dir_path = os.getcwd()
+        self.data_dir = os.path.abspath(os.path.join(dir_path, '../data'))
+        self.best_weights = os.path.join(data_dir, 'weights.hdf5')
+        self.create_model()
 
-model.add(LSTM(layers['hidden2'],return_sequences=True))
-model.add(Dropout(0.2))
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
 
-model.add(LSTM(layers['hidden3'], return_sequences=False))
-model.add(Dropout(0.2))
+    def create_model(self):
 
-model.add(Dense(output_dim=layers['output']))
-model.add(Activation("linear"))
+        #create model
+        model = Sequential()
+        layers = {'input': 1, 'hidden1': 64, 'hidden2': 256, 'hidden3': 100, 'output': 1}
 
-start = time.time()
-model.compile(loss="mse", optimizer="rmsprop")
-print ("Compilation Time : ", time.time() - start)
+        model.add(LSTM( input_length=self.sequence_length,  input_dim=layers['input'],
+                    output_dim=layers['hidden1'],
+                    return_sequences=True))
+        model.add(Dropout(0.2))
 
-def window_transform_series(series, window_size):
-    # containers for input/output pairs
-    X = []
-    y = []
-    #y values starts from index window_size till end
-    y = series[window_size:]
-    #x values ends windows_size before the end
-    X = [series[:-window_size]]
-    # Create window_size columns of shiffted x values
-    for i in range(1,window_size):
-        X = np.vstack((X, series[i:(i - window_size)]))
-    # Transpose to rows
-    X = X.T
-    # reshape each
-    X = np.asarray(X)
-    X.shape = (np.shape(X)[0:2])
-    y = np.asarray(y)
-    y.shape = (len(y), 1)
+        model.add(LSTM(layers['hidden2'],return_sequences=True))
+        model.add(Dropout(0.2))
 
-    return X, y
+        model.add(LSTM(layers['hidden3'], return_sequences=False))
+        model.add(Dropout(0.2))
 
-start_time = datetime(2017, 3, 11,11,0)
-end_time = datetime(2017, 3, 12, 12,0)
-time_range= (file_df["TimeStamp"] < end_time) & (file_df["TimeStamp"] > start_time)
-time_series = file_df[time_range]["21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)"]
-X,y = window_transform_series(time_series, sequence_length)
+        model.add(Dense(output_dim=layers['output']))
+        model.add(Activation("linear"))
+        self.model = model
+        self.model.compile(loss="mse", optimizer="rmsprop")
 
-# split our dataset into training / testing sets
-train_test_split = int(np.ceil(2*len(y)/float(3)))   # set the split point
+    def window_transform_series(self, series, window_size):
+        # containers for input/output pairs
+        X = []
+        y = []
+        # y values starts from index window_size till end
+        y = series[window_size:]
+        # x values ends windows_size before the end
+        X = [series[:-window_size]]
+        # Create window_size columns of shiffted x values
+        for i in range(1, window_size):
+            X = np.vstack((X, series[i:(i - window_size)]))
+        # Transpose to rows
+        X = X.T
+        # reshape each
+        X = np.asarray(X)
+        X.shape = (np.shape(X)[0:2])
+        y = np.asarray(y)
+        y.shape = (len(y), 1)
 
-# partition the training set
-X_train = X[:train_test_split,:]
-y_train = y[:train_test_split]
+        return X, y
 
-# keep the last chunk for testing
-X_test = X[train_test_split:,:]
-y_test = y[train_test_split:]
+    def process_timeseries(self, time_series):
+        self.time_series = time_series
+        self.time_values = range(len(time_series))
+        X, y = self.window_transform_series(time_series, self.sequence_length)
 
-# NOTE: to use keras's RNN LSTM module our input must be reshaped to [samples, window size, stepsize]
-X_train = np.asarray(np.reshape(X_train, (X_train.shape[0], sequence_length, 1)))
-X_test = np.asarray(np.reshape(X_test, (X_test.shape[0], sequence_length, 1)))
+        # split our dataset into training / testing sets
+        train_test_split = int(np.ceil(2 * len(y) / float(3)))  # set the split point
 
-# run your model!
-model.fit(X_train, y_train, epochs=5, batch_size=50, verbose=1)
+        # partition the training set
+        X_train = X[:train_test_split, :]
+        y_train = y[:train_test_split]
 
-# generate predictions for training
-train_predict = model.predict(X_train)
-test_predict = model.predict(X_test)
+        # keep the last chunk for testing
+        X_test = X[train_test_split:, :]
+        y_test = y[train_test_split:]
 
-import matplotlib.pyplot as plt
-# plot original series
-plt.plot(time_series,color = 'k')
+        # NOTE: to use keras's RNN LSTM module our input must be reshaped to [samples, window size, stepsize]
+        X_train = np.asarray(np.reshape(X_train, (X_train.shape[0], self.sequence_length, 1)))
+        X_test = np.asarray(np.reshape(X_test, (X_test.shape[0], self.sequence_length, 1)))
 
-split_pt = train_test_split + sequence_length
-plt.plot(np.arange(sequence_length,split_pt,1),train_predict,color = 'b')
+        checkpointer = ModelCheckpoint(filepath=self.best_weights, verbose=1,save_best_only=True)
+        # run your model!
+        history = self.model.fit(X_train, y_train, epochs=self.epochs, batch_size=self.batch_size, validation_data=(X_test, y_test), verbose=2,
+                            shuffle=False, callbacks=[checkpointer])
 
-# plot testing set prediction
-plt.plot(np.arange(split_pt,split_pt + len(test_predict),1),test_predict,color = 'r')
+        # load the weights that yielded the best validation accuracy
+        self.model.load_weights(self.best_weights)
+        # plot history
+        plt.plot(history.history['loss'], label='train')
+        plt.plot(history.history['val_loss'], label='test')
+        plt.legend()
+        plt.show()
+        # generate predictions for training
+        train_predict = self.model.predict(X_train)
+        test_predict = self.model.predict(X_test)
 
-# pretty up graph
-plt.xlabel('time ')
-plt.ylabel('(normalized) price of Apple stock')
-plt.legend(['original series','training fit','testing fit'],loc='center left', bbox_to_anchor=(1, 0.5))
-plt.show()
+        plt.plot(self.time_values, time_series, color='k')
+
+        split_pt = train_test_split + self.sequence_length
+        plt.plot(np.arange(self.sequence_length, split_pt, 1), train_predict, color='b')
+
+        # plot testing set prediction
+        plt.plot(np.arange(split_pt, split_pt + len(test_predict), 1), test_predict, color='r')
+
+        # pretty up graph
+        plt.xlabel('time ')
+        plt.ylabel('21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)')
+        plt.legend(['original series', 'training fit', 'testing fit'])
+        plt.show()
+
+
+with anomaly_detection(sequence_length=50, batch_size=64, epochs=50) as anomaly_detection:
+    start = time.time()
+    start_time = datetime(2017, 3, 11,11,0)
+    end_time = datetime(2017, 3, 12, 12,0)
+    time_range= (file_df["TimeStamp"] < end_time) & (file_df["TimeStamp"] > start_time)
+    time_series = file_df[time_range]["21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)"]
+    anomaly_detection.process_timeseries(time_series)
