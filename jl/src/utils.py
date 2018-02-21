@@ -12,7 +12,9 @@ font = {'family' : 'normal',
 plt.rc('font', **font)
 
 plt.rcParams.update({'font.size': 16})
-datefmt = mdates.DateFormatter('%d/%H:%M')
+datefmt = mdates.DateFormatter('%m%d/%H')
+
+#datefmt = mdates.DateFormatter('%H:%M:%S')
 
 ## Features
 separator_2nd_features = ["21-PT-10605.PV_Prod_Sep_2nd_Stg (PSIG)",
@@ -99,6 +101,17 @@ downhole_G_p_features = ["05-PT-33101-03_G1_Manifold_Pressure (Psi)",
                          "05-PT-33101-02_G1_Manifold_Pressure (Psi)",
                          "05-TT-33101-02_G1_Manifold_Temperature (DegF)"
                          ]
+
+downhole_presures =["05-PT-34101-04_H1_Manifold_Pressure (Psi)",
+                    "05-PT-34101-01_H1_Manifold_Pressure (Psi)",
+                    "05-PT-29101-02_C1_Manifold_Pressure (Psi)",
+                    "05-PT-29101-03_C1_Manifold_Pressure (Psi)",
+                    "05-PT-28201-01_B2_Manifold_Pressure (Psi)",
+                    "05-PT-28201-03_B2_Manifold_Pressure (Psi)",
+                    "05-PT-33101-03_G1_Manifold_Pressure (Psi)",
+                    "05-PT-33101-02_G1_Manifold_Pressure (Psi)"
+]
+
 
 
 def downhole_40_removal(df,features):
@@ -205,3 +218,4 @@ def subplot_features(df, start_time, end_time, features1, features2, features3,
         ax3.plot(x, y, label=feature)
     ax3.xaxis.set_major_formatter(datefmt)
     ax3.legend(features3, framealpha=0.2)
+
