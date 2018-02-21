@@ -17,22 +17,28 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
 
-
 class anomaly_detection:
     def __enter__(self):
         return (self)
 
-    def __init__(self, sequence_length=50, batch_size=64, epochs=50, dropout = 0.2):
+    def __init__(self, sequence_length=50, batch_size=64, epochs=50, dropout = 0.2, verbose=0):
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.epochs = epochs
-        self.data_dir = os.path.abspath( '../data')
-        self.best_weights = os.path.join(self.data_dir, 'weights.hdf5')
+        self.data_dir = os.path.abspath( '../data')      
         self.dropout = dropout
+        self.verbose = verbose
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
 
+    def predict(self, values):
+        X = np.asarray(np.reshape(self.scaler.transform(values), (values.shape[0], self.sequence_length, 1)))
+        return self.scaler.inverse_transform(self.model.predict(X))
+
+    def best_weights(self):
+        return os.path.join(self.data_dir,self.name + '_weights.hdf5')
+    
     def create_model(self, input_shape):
 
         #create model
@@ -76,15 +82,27 @@ class anomaly_detection:
         y.shape = (len(y), 1)
 
         return X, y
+    def find_anomaly(self, error_level=0.05):
+        data = zip(self.y_predict, self.y)
+        anomalies = []
+        index = 0
+        for x,y in data:
+            if abs(x-y) > error_level:
+                t = index + self.sequence_length
+                if t < len(self.y):
+                    anomalies.append(self.sequence_length + index)
+            index+=1
+        return np.asarray(anomalies, dtype=int)
 
-    def process_timeseries(self, time_series,show_figures=False):
+    def set_name(self, name):
+        self.name = name
+
+    def timeseries_fit(self, time_series,show_figures=False, run_model = True):
         # normalize features
         self.scaler = MinMaxScaler(feature_range=(0, 1))
-        time_series = self.scaler.fit_transform(time_series)
-        self.time_series = time_series.reshape(-1,1) 
+        self.time_series  = self.scaler.fit_transform(time_series)
         self.time_values = range(len(time_series))
-        X, y = self.window_transform_series(time_series, self.sequence_length)
-
+        X, y = self.window_transform_series(self.time_series, self.sequence_length)
         # split our dataset into training / testing sets
         train_test_split = int(np.ceil(2 * len(y) / float(3)))  # set the split point
 
@@ -101,33 +119,48 @@ class anomaly_detection:
         # NOTE: to use keras's RNN LSTM module our input must be reshaped to [samples, window size, stepsize]
         X_train = np.asarray(np.reshape(X_train, (X_train.shape[0], self.sequence_length, 1)))
         X_test = np.asarray(np.reshape(X_test, (X_test.shape[0], self.sequence_length, 1)))
+        if run_model or not os.path.exists(self.best_weights()):
+            checkpointer = ModelCheckpoint(filepath=self.best_weights(), verbose=1,save_best_only=True)
+            # run your model!
+            history = self.model.fit(X_train, y_train, epochs=self.epochs, batch_size=self.batch_size, validation_data=(X_test, y_test), verbose=self.verbose, shuffle=False, callbacks=[checkpointer])
 
-        checkpointer = ModelCheckpoint(filepath=self.best_weights, verbose=1,save_best_only=True)
-        # run your model!
-        history = self.model.fit(X_train, y_train, epochs=self.epochs, batch_size=self.batch_size, validation_data=(X_test, y_test), verbose=2,
-                            shuffle=False, callbacks=[checkpointer])
 
+            if show_figures:
+                plt.clf()
+                fig, ax = plt.subplots(figsize=(15,8))
+                #plot history
+                ax.plot(history.history['loss'], label='train')
+                ax.plot(history.history['val_loss'], label='test')
+                ax.legend()
+                figure_name = os.path.join(self.data_dir, self.name + "_history.png")
+
+                plt.savefig(figure_name)
         # load the weights that yielded the best validation accuracy
-        self.model.load_weights(self.best_weights)
-        if show_figures:
-            # plot history
-            plt.plot(history.history['loss'], label='train')
-            plt.plot(history.history['val_loss'], label='test')
-            plt.legend()
+        self.model.load_weights(self.best_weights())
         # generate predictions for training
         train_predict = self.model.predict(X_train)
         test_predict = self.model.predict(X_test)
+                                 
         if show_figures:
-            plt.plot(self.time_values, self.time_series, color='k')
+            plt.clf()
+            fig, ax = plt.subplots(figsize=(15,8))
+            ax.plot(self.time_values, self.time_series, color='k')
 
             split_pt = train_test_split + self.sequence_length
-            plt.plot(np.arange(self.sequence_length, split_pt, 1), train_predict, color='b')
+            ax.plot(np.arange(self.sequence_length, split_pt, 1), train_predict, color='b')
 
             # plot testing set prediction
-            plt.plot(np.arange(split_pt, split_pt + len(test_predict), 1), test_predict, color='r')
+            ax.plot(np.arange(split_pt, split_pt + len(test_predict), 1), test_predict, color='r')
 
             # pretty up graph
             plt.xlabel('time ')
-            plt.ylabel('21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)')
+            plt.ylabel(self.name)
             plt.legend(['original series', 'training fit', 'testing fit'])
+            #plt.show()
+            figure_name = os.path.join(self.data_dir, self.name + "_fitting.png")
+            
+            plt.savefig(figure_name)
 
+        X = np.asarray(np.reshape(X, (X.shape[0], self.sequence_length, 1)))
+        self.y_predict = self.model.predict(X)
+        self.y = y
