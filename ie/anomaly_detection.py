@@ -12,31 +12,10 @@ from keras.layers import LSTM
 import time
 from keras.callbacks import ModelCheckpoint
 import os
-
+from pandas import concat
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
-
-# plot original series
-dir_path = os.getcwd()
-data_dir = os.path.abspath(os.path.join(dir_path, '../data'))
-combined_pkl = os.path.join(data_dir, 'combine.pkl')
-part1_pkl = os.path.join(data_dir, "Part1.pkl")
-part2_pkl = os.path.join(data_dir, "Part2.pkl")
-file1 = os.path.join(data_dir,"Hackathon_DataSet_OctApr_Part1.txt")
-file2 = os.path.join(data_dir,"Hackathon_DataSet_OctApr_Part2.txt")
-
-#file1_df = pd.read_table(file1, sep='\t', header=0, parse_dates=['TimeStamp'], index_col=["Id"])
-#file2_df = pd.read_table(file2, sep='\t', header=0, parse_dates=['TimeStamp'], index_col=["Id"])
-
-#print(len(file1_df.columns))
-#print(len(file2_df.columns))
-#print(file1_df.columns)
-#print(file2_df.columns)
-
-#file_df = pd.merge(file1_df, file2_df, on="TimeStamp")
-#file_df.to_pickle(combined_pkl)
-file_df = pd.read_pickle(combined_pkl)
-
-#file_df.info()
 
 
 class anomaly_detection:
@@ -47,9 +26,8 @@ class anomaly_detection:
         self.sequence_length = sequence_length
         self.batch_size = batch_size
         self.epochs = epochs
-        self.dir_path = os.getcwd()
-        self.data_dir = os.path.abspath(os.path.join(dir_path, '../data'))
-        self.best_weights = os.path.join(data_dir, 'weights.hdf5')
+        self.data_dir = os.path.abspath( '../data')
+        self.best_weights = os.path.join(self.data_dir, 'weights.hdf5')
         self.dropout = dropout
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -59,7 +37,7 @@ class anomaly_detection:
 
         #create model
         model = Sequential()
-        layers = {'input': 1, 'hidden1': 64, 'hidden2': 512, 'hidden3': 256, 'hidden4': 100, 'output': 1}
+        layers = {'input': 1, 'hidden1': 64, 'hidden2': 128, 'hidden3': 100, 'hidden4': 100, 'output': 1}
 
         model.add(LSTM( input_shape=input_shape, units=layers['hidden1'], return_sequences=True))
         model.add(Dropout(self.dropout))
@@ -67,16 +45,16 @@ class anomaly_detection:
         model.add(LSTM(units=layers['hidden2'],return_sequences=True))
         model.add(Dropout(self.dropout))
 
-        model.add(LSTM(units=layers['hidden3'], return_sequences=True))
+        model.add(LSTM(units=layers['hidden3'], return_sequences=False))
         model.add(Dropout(self.dropout))
 
-        model.add(LSTM(units=layers['hidden4'], return_sequences=False))
-        model.add(Dropout(self.dropout))
+        #model.add(LSTM(units=layers['hidden4'], return_sequences=False))
+        #model.add(Dropout(self.dropout))
 
         model.add(Dense(units=layers['output']))
         model.add(Activation("linear"))
         self.model = model
-        self.model.compile(loss="mse", optimizer="rmsprop")
+        self.model.compile(loss="mse", optimizer="adam")
 
     def window_transform_series(self, series, window_size):
         # containers for input/output pairs
@@ -99,8 +77,11 @@ class anomaly_detection:
 
         return X, y
 
-    def process_timeseries(self, time_series):
-        self.time_series = time_series
+    def process_timeseries(self, time_series,show_figures=False):
+        # normalize features
+        self.scaler = MinMaxScaler(feature_range=(0, 1))
+        time_series = self.scaler.fit_transform(time_series)
+        self.time_series = time_series.reshape(-1,1) 
         self.time_values = range(len(time_series))
         X, y = self.window_transform_series(time_series, self.sequence_length)
 
@@ -128,34 +109,25 @@ class anomaly_detection:
 
         # load the weights that yielded the best validation accuracy
         self.model.load_weights(self.best_weights)
-        # plot history
-        plt.plot(history.history['loss'], label='train')
-        plt.plot(history.history['val_loss'], label='test')
-        plt.legend()
-        plt.show()
+        if show_figures:
+            # plot history
+            plt.plot(history.history['loss'], label='train')
+            plt.plot(history.history['val_loss'], label='test')
+            plt.legend()
         # generate predictions for training
         train_predict = self.model.predict(X_train)
         test_predict = self.model.predict(X_test)
+        if show_figures:
+            plt.plot(self.time_values, self.time_series, color='k')
 
-        plt.plot(self.time_values, time_series, color='k')
+            split_pt = train_test_split + self.sequence_length
+            plt.plot(np.arange(self.sequence_length, split_pt, 1), train_predict, color='b')
 
-        split_pt = train_test_split + self.sequence_length
-        plt.plot(np.arange(self.sequence_length, split_pt, 1), train_predict, color='b')
+            # plot testing set prediction
+            plt.plot(np.arange(split_pt, split_pt + len(test_predict), 1), test_predict, color='r')
 
-        # plot testing set prediction
-        plt.plot(np.arange(split_pt, split_pt + len(test_predict), 1), test_predict, color='r')
+            # pretty up graph
+            plt.xlabel('time ')
+            plt.ylabel('21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)')
+            plt.legend(['original series', 'training fit', 'testing fit'])
 
-        # pretty up graph
-        plt.xlabel('time ')
-        plt.ylabel('21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)')
-        plt.legend(['original series', 'training fit', 'testing fit'])
-        plt.show()
-
-
-with anomaly_detection(sequence_length=50, batch_size=64, epochs=50, dropout=0.5) as anomaly_detection:
-    start = time.time()
-    start_time = datetime(2017, 3, 11,11,0)
-    end_time = datetime(2017, 3, 12, 12,0)
-    time_range= (file_df["TimeStamp"] < end_time) & (file_df["TimeStamp"] > start_time)
-    time_series = file_df[time_range]["21-LT-10516.PV_Prod_Sep_Oil_Interface_Level (%)"]
-    anomaly_detection.process_timeseries(time_series)
