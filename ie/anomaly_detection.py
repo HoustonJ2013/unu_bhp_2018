@@ -16,6 +16,10 @@ from pandas import concat
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.preprocessing import LabelEncoder
 import matplotlib.pyplot as plt
+font = {'family' : 'Consolas',
+        'weight' : 'bold',
+        'size'   : 32}
+plt.rc('font', **font)
 
 class anomaly_detection:
     def __enter__(self):
@@ -132,6 +136,8 @@ class anomaly_detection:
                 ax.plot(history.history['val_loss'], label='test')
                 ax.legend()
                 figure_name = os.path.join(self.data_dir, self.name + "_history.png")
+                plt.xlabel('Iteration')
+                plt.ylabel('RMSE')
 
                 plt.savefig(figure_name)
         # load the weights that yielded the best validation accuracy
