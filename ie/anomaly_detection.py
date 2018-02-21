@@ -91,6 +91,10 @@ class anomaly_detection:
 
     def set_name(self, name):
         self.name = name
+        
+    def predict(self, values):
+        X = np.asarray(np.reshape(self.scaler.transform(values), (values.shape[0], self.sequence_length, 1)))
+        return self.scaler.inverse_transform(self.model.predict(X))
 
     def timeseries_fit(self, time_series,show_figures=False, run_model = True):
         # normalize features
