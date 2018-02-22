@@ -35,6 +35,11 @@ class anomaly_detection:
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         pass
+
+    def predict(self, values):
+        X = np.asarray(np.reshape(self.scaler.transform(values), (values.shape[0], self.sequence_length, 1)))
+        return self.scaler.inverse_transform(self.model.predict(X))
+
     def best_weights(self):
         return os.path.join(self.data_dir,self.name + '_weights.hdf5')
     
