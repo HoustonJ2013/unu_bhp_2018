@@ -12,9 +12,14 @@ font = {'family' : 'normal',
 plt.rc('font', **font)
 
 plt.rcParams.update({'font.size': 16})
-datefmt = mdates.DateFormatter('%m%d/%H')
+
+datefmt = mdates.DateFormatter('%m/%d:%H')
+
+datefmt2 = mdates.DateFormatter('%m%d:%H')
 
 #datefmt = mdates.DateFormatter('%H:%M:%S')
+
+upset_events = [20161026, 20161111, 20161116, 20161127, 20170128, 20170219, 20170312]
 
 ## Features
 separator_2nd_features = ["21-PT-10605.PV_Prod_Sep_2nd_Stg (PSIG)",
@@ -73,18 +78,19 @@ downhole_H_p1_features = ["05-PT-34101-01_H1_Manifold_Pressure (Psi)",
                           "05-TT-34101-01_H1_Manifold_Temperature (DegF)"
                           ]
 
-downhole_H_p_features = ["05-PT-34101-04_H1_Manifold_Pressure (Psi)",
-                         "05-TT-34101-04_H1_Manifold_Temperature (DegF)",
-                         "05-PT-34101-01_H1_Manifold_Pressure (Psi)",
-                         "05-TT-34101-01_H1_Manifold_Temperature (DegF)"
-                         ]
-
 downhole_C_p2_features = ["05-PT-29101-02_C1_Manifold_Pressure (Psi)",
                           "05-TT-29101-02_C1_Manifold_Temperature (DegF)"
                           ]
 downhole_C_p1_features = ["05-PT-29101-03_C1_Manifold_Pressure (Psi)",
                           "05-TT-29101-03_C1_Manifold_Temperature (DegF)"
                           ]
+
+downhole_H_p_features = ["05-PT-34101-04_H1_Manifold_Pressure (Psi)",
+                         "05-TT-34101-04_H1_Manifold_Temperature (DegF)",
+                         "05-PT-34101-01_H1_Manifold_Pressure (Psi)",
+                         "05-TT-34101-01_H1_Manifold_Temperature (DegF)"
+                         ]
+
 downhole_C_p_features = ["05-PT-29101-02_C1_Manifold_Pressure (Psi)",
                          "05-TT-29101-02_C1_Manifold_Temperature (DegF)",
                          "05-PT-29101-03_C1_Manifold_Pressure (Psi)",
@@ -102,17 +108,44 @@ downhole_G_p_features = ["05-PT-33101-03_G1_Manifold_Pressure (Psi)",
                          "05-TT-33101-02_G1_Manifold_Temperature (DegF)"
                          ]
 
-downhole_presures =["05-PT-34101-04_H1_Manifold_Pressure (Psi)",
-                    "05-PT-34101-01_H1_Manifold_Pressure (Psi)",
+# downhole_presures =[
+#                     "05-PT-34101-04_H1_Manifold_Pressure (Psi)",
+#                     "05-PT-34101-01_H1_Manifold_Pressure (Psi)",
+#                     "05-PT-29101-02_C1_Manifold_Pressure (Psi)",
+#                     "05-PT-29101-03_C1_Manifold_Pressure (Psi)",
+#                     "05-PT-28201-01_B2_Manifold_Pressure (Psi)",
+#                     "05-PT-28201-03_B2_Manifold_Pressure (Psi)",
+#                     "05-PT-33101-03_G1_Manifold_Pressure (Psi)",
+#                     "05-PT-33101-02_G1_Manifold_Pressure (Psi)"
+# ]
+#
+# downhole_temp =[
+#                 "05-TT-34101-04_H1_Manifold_Temperature (DegF)",
+#                 "05-TT-34101-01_H1_Manifold_Temperature (DegF)",
+#                 "05-TT-29101-02_C1_Manifold_Temperature (DegF)",
+#                 "05-TT-29101-03_C1_Manifold_Temperature (DegF)",
+#                 "05-TT-28201-01_B2_Manifold_Temperature (DegF)",
+#                 "05-TT-28201-03_B2_Manifold_Temperature (DegF)",
+#                 "05-TT-33101-03_G1_Manifold_Temperature (DegF)",
+#                 "05-TT-33101-02_G1_Manifold_Temperature (DegF)"
+# ]
+
+downhole_presures =[
                     "05-PT-29101-02_C1_Manifold_Pressure (Psi)",
                     "05-PT-29101-03_C1_Manifold_Pressure (Psi)",
-                    "05-PT-28201-01_B2_Manifold_Pressure (Psi)",
-                    "05-PT-28201-03_B2_Manifold_Pressure (Psi)",
-                    "05-PT-33101-03_G1_Manifold_Pressure (Psi)",
-                    "05-PT-33101-02_G1_Manifold_Pressure (Psi)"
+                    "05-PT-28201-01_B2_Manifold_Pressure (Psi)"
 ]
 
+downhole_temp =[
+                "05-TT-29101-02_C1_Manifold_Temperature (DegF)",
+                "05-TT-29101-03_C1_Manifold_Temperature (DegF)",
+                "05-TT-28201-01_B2_Manifold_Temperature (DegF)"
+]
 
+dirty_cols1 = [ '20-HX-10003.Status_Flowline_From_Drill_Center_C ( )',
+                '20-HX-10004.Status_Flowline_From_Drill_Center_C ( )',
+                '20-HX-20003.Status_Flowline_From_Drill_Centers_B&G ( )',
+                '20-HX-20004.Status_Flowline_From_Drill_Centers_B&G ( )']
 
 def downhole_40_removal(df,features):
     for feature in features:
@@ -149,12 +182,12 @@ def normalize_for_plot(v):
     return v
 
 
-def plot_features(df, start_time, end_time, features, normalized=True, lp_filter=True, legend_on=True):
+def plot_features(df, start_time, end_time, features, figsize=(15,3), normalized=True, lp_filter=True, legend_on=True):
     '''
     plot the feautres for EDA in different time range
     Feature is suggested to normalize for feature comparison
     '''
-    fig, ax = plt.subplots(figsize=(15, 6))
+    fig, ax = plt.subplots(figsize=figsize)
     time_range = (df["Time"] < end_time) & (df["Time"] > start_time)
     x = df.loc[time_range, ["Time"]].values
     level = 0
@@ -173,6 +206,29 @@ def plot_features(df, start_time, end_time, features, normalized=True, lp_filter
     if legend_on:
         plt.legend(features, framealpha=0.2, fontsize=12)
 
+
+def plot_features_no_level(df, start_time, end_time, features, figsize=(15,3), normalized=True, lp_filter=True, legend_on=True):
+    '''
+    plot the feautres for EDA in different time range
+    Feature is suggested to normalize for feature comparison
+    '''
+    fig, ax = plt.subplots(figsize=figsize)
+    time_range = (df["Time"] < end_time) & (df["Time"] > start_time)
+    x = df.loc[time_range, ["Time"]].values
+    level = 0
+    for feature in features:
+        y = df.loc[time_range, [feature]].values
+        if y[0] is None:
+            continue
+        if lp_filter:
+            y = lp_butter(y, 0.06)
+        if normalized and np.mean(y) != 0:
+            y = normalize_for_plot(y)
+        ax.plot(x, y + level, label=feature)
+    if normalized: ax.set_ylim([-2, 2])
+    ax.xaxis.set_major_formatter(datefmt)
+    if legend_on:
+        plt.legend(features, framealpha=0.2, fontsize=12)
 
 def subplot_features(df, start_time, end_time, features1, features2, features3,
                      normalized=False, lp_filter=True):
@@ -219,3 +275,68 @@ def subplot_features(df, start_time, end_time, features1, features2, features3,
     ax3.xaxis.set_major_formatter(datefmt)
     ax3.legend(features3, framealpha=0.2)
 
+
+def parse_npdate(array):
+    '''
+    Input: array of datetime
+    Output: array year
+            array month
+            array day
+            array hour
+            array min
+    '''
+    n = len(array)
+    year = np.arange(n)
+    month = np.arange(n)
+    day = np.arange(n)
+    hour = np.arange(n)
+    mini = np.arange(n)
+    for i in range(n):
+        (tem1, tem2) = str(array[i][0]).split("T")
+        tem1_s = tem1.split("-")
+        tem2_s = tem2.split(":")
+        year[i] = tem1_s[0]
+        month[i] = tem1_s[1]
+        day[i] = tem1_s[2]
+        hour[i] = tem2_s[0]
+        mini[i] = tem2_s[1]
+    return year, month, day, hour, mini
+
+
+def check_subset(List1, List2):
+    '''
+    If List1 contains List 2
+    '''
+    set1 = set(List1)
+    set2 = set(List2)
+    return set1 >= set2
+
+
+def plot_feature_T_P(df, start_time, end_time, Temp, Pressure, Temp_threshold = 40, lp_filter=True, legend_on=True):
+    '''
+    plot the feautres for EDA in different time range
+    Feature is suggested to normalize for feature comparison
+    '''
+    fig, (ax1, ax2) = plt.subplots(2, figsize=(15, 8))
+    time_range = (df["Time"] < end_time) & (df["Time"] > start_time)
+
+    x = df.loc[time_range, ["Time"]].values
+    feature = Temp
+    y = df.loc[time_range, [feature]].values
+    temp_index = (y < Temp_threshold)
+    y[temp_index] = 0
+    if lp_filter:
+        y = lp_butter(y, 0.06)
+    ax1.plot(x, y, label="Temp")
+    ax1.xaxis.set_major_formatter(datefmt2)
+    if legend_on: ax1.legend("Temp", framealpha=0.2, fontsize=12)
+    plt.title(feature)
+
+    feature = Pressure
+    y = df.loc[time_range, [feature]].values
+    if lp_filter:
+        y = lp_butter(y, 0.06)
+    ax2.plot(x, y, label="Pressure")
+    ax2.xaxis.set_major_formatter(datefmt2)
+    if legend_on: ax2.legend("Pressure", framealpha=0.2, fontsize=12)
+    plt.title(feature)
